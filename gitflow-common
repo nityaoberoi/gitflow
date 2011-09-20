@@ -153,6 +153,13 @@ git_is_branch_merged_into() {
 #
 
 # check if this repo has been inited for gitflow
+gitflow_has_user_configured() {
+    local user=$(git config --get user.email)
+    local github_user=$(git config --get github.user)
+    local ssh_keys=$(ls  ~/.ssh/ | grep _rsa | wc -l)
+    ([ "$user" != "" ] || [ "$github_user" != "" ]) && [ ssh_keys -ne 0 ]
+}
+
 gitflow_has_master_configured() {
 	local master=$(git config --get gitflow.branch.master)
 	[ "$master" != "" ] && git_local_branch_exists "$master"
@@ -185,6 +192,7 @@ gitflow_load_settings() {
 	export MASTER_BRANCH=$(git config --get gitflow.branch.master)
 	export DEVELOP_BRANCH=$(git config --get gitflow.branch.develop)
 	export ORIGIN=$(git config --get gitflow.origin || echo origin)
+	export GITUSER=$(git config --get user.email || git config --get github.user)
 }
 
 #
@@ -249,6 +257,11 @@ require_git_repo() {
 require_gitflow_initialized() {
 	if ! gitflow_is_initialized; then
 		die "fatal: Not a gitflow-enabled repo yet. Please run \"git flow init\" first."
+	fi
+	if ! gitflow_has_user_configured; then
+		echo "Enter your github email. This will be used to send pull requests when finishing a feature:"
+		read email
+		$(git config --global user.email "$email")
 	fi
 }
 

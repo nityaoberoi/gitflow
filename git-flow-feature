@@ -40,6 +40,7 @@ require_git_repo
 require_gitflow_initialized
 gitflow_load_settings
 PREFIX=$(git config --get gitflow.prefix.feature)
+PULL_REQUEST_URL="https://api.github.com/repos/Yipit/yipit/pulls"
 
 usage() {
 	echo "usage: git flow feature [list] [-v]"
@@ -227,6 +228,26 @@ cmd_start() {
 	echo
 }
 
+create_pull_request(){
+    local feature_name = $1
+    local feature = $2
+    local dev = $3
+    echo "You're creating a pull request from $feature to $dev:"
+    echo "Enter the subject (topic) of the pull request [$feature_name]:"
+    read title
+    if [ -z title]; then
+        $title = $feature_name
+    fi
+    echo "Enter any comments you would like to associate with the pull request:"
+    read comments
+    if [ -n comments]; then
+        json_data = "{'title': '$title', 'body': '$comments', 'head': '$feature', 'base': '$dev'}"
+    else
+        json_data = "{'title': '$title', 'head': '$feature', 'base': '$dev'}"
+    curl -v -H "Accept: application/json" -H "Content-type: application/json" -X POST -d $json_data -u $GITUSER --key ~/.ssh/github_rsa $PULL_REQUEST_URL
+    
+}
+
 cmd_finish() {
 	DEFINE_boolean fetch false "fetch from $ORIGIN before performing finish" F
 	DEFINE_boolean rebase false "rebase instead of merge" r
@@ -286,6 +307,15 @@ cmd_finish() {
 			git fetch -q "$ORIGIN" "$BRANCH"
 			git fetch -q "$ORIGIN" "$DEVELOP_BRANCH"
 		fi
+	else
+    	# create remote branch
+    	git push "$ORIGIN" "$BRANCH:refs/heads/$BRANCH"
+    	git fetch -q "$ORIGIN"
+
+    	# configure remote tracking
+    	git config "branch.$BRANCH.remote" "$ORIGIN"
+    	git config "branch.$BRANCH.merge" "refs/heads/$BRANCH"
+    	git checkout "$BRANCH"
 	fi
 
 	if has "$ORIGIN/$BRANCH" $(git_remote_branches); then
@@ -306,13 +336,15 @@ cmd_finish() {
 		fi
 	fi
 
+    #create a pull request
+    create_pull_request "$NAME" "$BRANCH" "$DEVELOP_BRANCH"
 	# merge into BASE
-	git checkout "$DEVELOP_BRANCH"
-	if [ "$(git rev-list -n2 "$DEVELOP_BRANCH..$BRANCH" | wc -l)" -eq 1 ]; then
-		git merge --ff "$BRANCH"
-	else
-		git merge --no-ff "$BRANCH"
-	fi
+	#git checkout "$DEVELOP_BRANCH"
+	#if [ "$(git rev-list -n2 "$DEVELOP_BRANCH..$BRANCH" | wc -l)" -eq 1 ]; then
+	#	git merge --ff "$BRANCH"
+	#else
+	#	git merge --no-ff "$BRANCH"
+	#fi
 
 	if [ $? -ne 0 ]; then
 		# oops.. we have a merge conflict!
@@ -344,20 +376,13 @@ helper_finish_cleanup() {
 		git push "$ORIGIN" ":refs/heads/$BRANCH"
 	fi
 	
+	git checkout "$DEVELOP_BRANCH"
 	
-	if noflag keep; then
-		git branch -d "$BRANCH"
-	fi
-
 	echo
 	echo "Summary of actions:"
-	echo "- The feature branch '$BRANCH' was merged into '$DEVELOP_BRANCH'"
+	echo "- A pull request was made from '$BRANCH' into '$DEVELOP_BRANCH'"
 	#echo "- Merge conflicts were resolved"		# TODO: Add this line when it's supported
-	if flag keep; then
-		echo "- Feature branch '$BRANCH' is still available"
-	else
-		echo "- Feature branch '$BRANCH' has been removed"
-	fi
+	echo "- Feature branch '$BRANCH' is still available"
 	echo "- You are now on branch '$DEVELOP_BRANCH'"
 	echo
 }
