@@ -157,7 +157,7 @@ gitflow_has_user_configured() {
     local user=$(git config --get user.email)
     local github_user=$(git config --get github.user)
     local ssh_keys=$(ls  ~/.ssh/ | grep _rsa | wc -l)
-    ([ "$user" != "" ] || [ "$github_user" != "" ]) && [ ssh_keys -ne 0 ]
+    ([ "$user" != "" ] || [ "$github_user" != "" ]) && [ "$ssh_keys" -ne 0 ]
 }
 
 gitflow_has_master_configured() {
@@ -183,7 +183,11 @@ gitflow_is_initialized() {
 	gitflow_has_develop_configured                   && \
 	[ "$(git config --get gitflow.branch.master)" !=    \
 	  "$(git config --get gitflow.branch.develop)" ] && \
-	gitflow_has_prefixes_configured
+	gitflow_has_prefixes_configured \   
+}
+
+get_github_user_repo() {
+    git config --get remote.origin.url | sed 's/.*:\(.*\)\..*/\1/';
 }
 
 # loading settings that can be overridden using git config
@@ -193,6 +197,7 @@ gitflow_load_settings() {
 	export DEVELOP_BRANCH=$(git config --get gitflow.branch.develop)
 	export ORIGIN=$(git config --get gitflow.origin || echo origin)
 	export GITUSER=$(git config --get user.email || git config --get github.user)
+	export GITHUB_USER_REPO=$(get_github_user_repo)
 }
 
 #

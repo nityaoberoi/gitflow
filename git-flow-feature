@@ -40,12 +40,13 @@ require_git_repo
 require_gitflow_initialized
 gitflow_load_settings
 PREFIX=$(git config --get gitflow.prefix.feature)
-PULL_REQUEST_URL="https://api.github.com/repos/Yipit/yipit/pulls"
+PULL_REQUEST_URL="https://api.github.com/repos/$GITHUB_USER_REPO/pulls"
 
 usage() {
 	echo "usage: git flow feature [list] [-v]"
 	echo "       git flow feature start [-F] <name> [<base>]"
 	echo "       git flow feature finish [-rFk] [<name|nameprefix>]"
+	echo "       git flow feature update_finish [-rFk] [<name|nameprefix>]"
 	echo "       git flow feature publish <name>"
 	echo "       git flow feature track <name>"
 	echo "       git flow feature diff [<name|nameprefix>]"
@@ -229,23 +230,57 @@ cmd_start() {
 }
 
 create_pull_request(){
-    local feature_name = $1
-    local feature = $2
-    local dev = $3
-    echo "You're creating a pull request from $feature to $dev:"
-    echo "Enter the subject (topic) of the pull request [$feature_name]:"
-    read title
-    if [ -z title]; then
-        $title = $feature_name
-    fi
-    echo "Enter any comments you would like to associate with the pull request:"
-    read comments
-    if [ -n comments]; then
-        json_data = "{'title': '$title', 'body': '$comments', 'head': '$feature', 'base': '$dev'}"
-    else
-        json_data = "{'title': '$title', 'head': '$feature', 'base': '$dev'}"
-    curl -v -H "Accept: application/json" -H "Content-type: application/json" -X POST -d $json_data -u $GITUSER --key ~/.ssh/github_rsa $PULL_REQUEST_URL
+    local feature_name=$1
+    local feature=$2
+    local pull_branch=$3
     
+    echo "You're creating a pull request from $feature to "$pull_branch":"
+    echo ""
+    printf "Enter the subject (topic) of the pull request ["$feature_name"]: "
+    read title
+    if [ -z "$title" ]; then
+        title=$feature_name
+    fi
+    printf "Enter any comments you would like to associate with the pull request: "
+    read comments
+    if [ -n "$comments" ]; then
+        json_data='{"title": "'$title'", "body": "'$comments'", "head": "'$feature'", "base": "'$pull_branch'"}'
+    else
+        json_data='{"title": "'$title'", "head": "'$feature'", "base": "'$pull_branch'"}'
+    fi
+    response=$(curl -sL -H "Accept: application/json" -H "Content-type: application/json" -X POST -d "$json_data" -u $GITUSER $PULL_REQUEST_URL -w "HTTPCode: %{http_code} \\n")
+    process_response_code "$response" "$title" "$comments"
+}
+
+process_response_code(){
+    local response=$1
+    local title=$2
+    local body=$3
+    
+    local http_code=${response##*HTTPCode: } # extracting just the string after HTTPCode
+    if [ $(expr "$http_code" : '2[0-9].*') -eq "0" ]; then
+        if [ "$http_code" -eq "422" ]; then
+            warn "There is already an open pull request from this feature branch."
+            warn "You will need to update this request."
+            printf "Visit 'https://github.com/Yipit/yipit/pulls' to get your pull id and enter it here: "
+            read pull_id
+            if [ -n "$pull_id" ]; then
+                create_patch_request "$pull_id" "$title" "$body"
+            fi
+        else
+            warn "######## The curl request was not successful #######"
+            printf "Message: "
+            warn "$response"
+            exit 1
+        fi
+    fi
+}
+
+create_patch_request() {
+    request_id="$1"
+    local json_data='{"title": "'$2'", "body": "'$3'"}'
+    local args='-H "Accept: application/json" -H "Content-type: application/json" -d "'$json_data'"'
+    patch_response=$(curl -sL "$args" -u $GITUSER "$PULL_REQUEST_URL/$request_id")
 }
 
 cmd_finish() {
@@ -338,28 +373,10 @@ cmd_finish() {
 
     #create a pull request
     create_pull_request "$NAME" "$BRANCH" "$DEVELOP_BRANCH"
-	# merge into BASE
-	#git checkout "$DEVELOP_BRANCH"
-	#if [ "$(git rev-list -n2 "$DEVELOP_BRANCH..$BRANCH" | wc -l)" -eq 1 ]; then
-	#	git merge --ff "$BRANCH"
-	#else
-	#	git merge --no-ff "$BRANCH"
-	#fi
 
 	if [ $? -ne 0 ]; then
-		# oops.. we have a merge conflict!
-		# write the given $DEVELOP_BRANCH to a temporary file (we need it later)
-		mkdir -p "$DOT_GIT_DIR/.gitflow"
-		echo "$DEVELOP_BRANCH" > "$DOT_GIT_DIR/.gitflow/MERGE_BASE"
-		echo
-		echo "There were merge conflicts. To resolve the merge conflict manually, use:"
-		echo "    git mergetool"
-		echo "    git commit"
-		echo 
-		echo "You can then complete the finish by running it again:"
-		echo "    git flow feature finish $NAME"
-		echo
-		exit 1
+	    warn "###### The pull request encountered an error. ######"
+	    exit $?
 	fi
 
 	# when no merge conflict is detected, just clean up the feature branch
@@ -371,7 +388,6 @@ helper_finish_cleanup() {
 	require_branch "$BRANCH"
 	require_clean_working_tree
 
-	# delete branch
 	if flag fetch; then
 		git push "$ORIGIN" ":refs/heads/$BRANCH"
 	fi
@@ -380,8 +396,7 @@ helper_finish_cleanup() {
 	
 	echo
 	echo "Summary of actions:"
-	echo "- A pull request was made from '$BRANCH' into '$DEVELOP_BRANCH'"
-	#echo "- Merge conflicts were resolved"		# TODO: Add this line when it's supported
+	echo "- A pull request was made from '$BRANCH' into '$DEVELOP_BRANCH'."
 	echo "- Feature branch '$BRANCH' is still available"
 	echo "- You are now on branch '$DEVELOP_BRANCH'"
 	echo
