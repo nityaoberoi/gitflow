@@ -27,23 +27,16 @@ Or have a look at one of these screen casts:
 Installing git-flow
 -------------------
 
-### Mac OS
-If you're on a Mac and use [homebrew](http://github.com/mxcl/homebrew), it's simple:
-
-    $ brew install git-flow
-
-If you're on a Mac and use [MacPorts](http://macports.org/), it's simple:
-
-    $ port install git-flow
-
 ### Manual installation
-If you prefer a manual installation, please use the following instructions:
 
 	$ git clone --recursive git://github.com:nityaoberoi/gitflow.git
 
 Then, you can install `git-flow`, using:
 
 	$ sudo make install
+
+If you had previously installed gitflow via brew, please replace it by moving this directory to:
+    $ sudo mv gitflow/ /path/to/original/gitflow/
 
 By default, git-flow will be installed in /usr/local. To change the prefix
 where git-flow will be installed, simply specify it explicitly, using:
