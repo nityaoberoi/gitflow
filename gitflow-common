@@ -156,8 +156,8 @@ git_is_branch_merged_into() {
 gitflow_has_user_configured() {
     local user=$(git config --get user.email)
     local github_user=$(git config --get github.user)
-    local ssh_keys=$(ls  ~/.ssh/ | grep _rsa | wc -l)
-    ([ "$user" != "" ] || [ "$github_user" != "" ]) && [ "$ssh_keys" -ne 0 ]
+    #local ssh_keys=$(ls  ~/.ssh/ | grep _rsa | wc -l)
+    ([ "$user" != "" ] || [ "$github_user" != "" ]) #&& [ "$ssh_keys" -ne 0 ]
 }
 
 gitflow_has_master_configured() {

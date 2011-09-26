@@ -27,6 +27,10 @@ Or have a look at one of these screen casts:
 Installing git-flow
 -------------------
 
+### Configure github credentials
+    $ git config --global user.name "username" 
+    $ git config --global user.email "user@email.com"
+
 ### Manual installation
 
 	$ git clone --recursive git://github.com:nityaoberoi/gitflow.git
@@ -45,6 +49,10 @@ where git-flow will be installed, simply specify it explicitly, using:
 
 Or simply point your `PATH` environment variable to your git-flow checkout
 directory.
+
+### Force initialization
+
+    $ git-flow init -f
 
 *Installation note:*  
 git-flow depends on the availability of the command line utility `getopt`,
