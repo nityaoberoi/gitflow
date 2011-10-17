@@ -33,7 +33,7 @@ Installing git-flow
 
 ### Manual installation
 
-	$ git clone --recursive git://github.com:nityaoberoi/gitflow.git
+	$ git clone --recursive https://nityaoberoi@github.com/nityaoberoi/gitflow.git
 
 Then, you can install `git-flow`, using:
 
