@@ -53,6 +53,19 @@ directory.
 ### Force initialization
 
     $ git-flow init -f
+    
+### Storing git credentials for creating pull requests
+
+```
+# Temporarily cache credentials for 1 hour
+$ git config --global credential.helper 'cache --timeout 3600'
+
+# ... or permanently store them in ~/.git-credentials
+$ git config --global credential.helper store	
+
+# If you're using OSX, and used brew to install git, you can store credentials in your keychain
+$ git config --global credential.helper osxkeychain
+```
 
 *Installation note:*  
 git-flow depends on the availability of the command line utility `getopt`,
